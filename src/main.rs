@@ -6,8 +6,8 @@ use opencv::imgproc::*;
 
 
 fn main() {
-  let file_path = "/home/pranayspeed/Work/git_repos/00/image_2";
-  let scan_file_path = "/home/pranayspeed/Work/git_repos";
+  let file_path = "/home/pranayspeed/Work/00/image_2";
+  let scan_file_path = "/home/pranayspeed/Work/mono-vo-rust";
   let mut vo = visual_odometry::VisualOdometry::new(file_path, scan_file_path);
 
   let frame1 = vo.get_bw_frame(0);
@@ -87,7 +87,7 @@ fn main() {
         height: 50,
       },
       Scalar::new(0.0, 0.0, 0.0, 0.0),
-      CV_FILLED,
+      FILLED,
       0,
       0,
     )

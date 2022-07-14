@@ -93,13 +93,14 @@ impl VisualOdometry {
     dst_image_points
   }
 
-  pub fn get_scale(&self, frame_id: i32, transform: &Mat, curr_pos: &mut Point2d) -> f64 {
+  pub fn get_scale(&self, frame_id: i32, transform: &Mat) -> f64 {
+    let mut curr_pos = Point2d::default();
     self.get_absolute_scale(
       frame_id,
       "00",
       *transform.at::<f64>(2).unwrap(),
       &self.scale_file_path,
-      curr_pos,
+      &mut curr_pos,
     )
   }
 
