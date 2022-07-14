@@ -108,7 +108,7 @@ impl VisualOdometry {
     &self,
     frame_id: i32,
     sequence_id: &str,
-    z_cal: f64,
+    _z_cal: f64,
     file_path: &str,
     curr_pos: &mut Point2d
   ) -> f64 {
