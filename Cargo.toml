@@ -8,3 +8,4 @@ edition = "2018"
 [dependencies]
 opencv = "0.54"
 kiss3d = "0.32"
+nalgebra = {version = "*", features = ["serde-serialize"]}

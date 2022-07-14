@@ -4,6 +4,8 @@ use crate::visual_odometry::VisualOdometry;
 use crate::frame_loader::FrameLoader;
 use crate::viewer2d::Viewer2D;
 
+use crate::viewer3d::Viewer3D;
+
 pub fn vo_main(scale_value: bool) {
 
     // test data path for Kitti dataset 00 sequence
@@ -27,7 +29,13 @@ pub fn vo_main(scale_value: bool) {
 
     viewer2d.init(600, 600);
 
-  
+
+    /////////////////////////////////////
+    //let vidwer3d = Viewer3D::deafult();
+    ///////////////////////
+    
+
+    
     for num_frame in 2..frame_loader.get_max_frame() {
       let curr_image_c = frame_loader.get_next_frame();
       let curr_image = frame_loader.get_bw_from_color(&curr_image_c);
