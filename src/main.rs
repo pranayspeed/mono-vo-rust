@@ -2,6 +2,7 @@
 mod visual_odometry;
 mod frame_loader;
 mod viewer2d;
+mod viewer3d;
 mod vo_main;
 
 fn main() {

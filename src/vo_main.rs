@@ -5,8 +5,12 @@ use crate::frame_loader::FrameLoader;
 use crate::viewer2d::Viewer2D;
 
 pub fn vo_main(scale_value: bool) {
+
+    // test data path for Kitti dataset 00 sequence
     let file_path = "/home/pranayspeed/Work/00/image_2";
     let scan_file_path = "/home/pranayspeed/Work/mono-vo-rust";
+    // sequence_id is only needed if we have scale information
+    // For our experiment, sequence_id is not needed.
     let sequence_id_str="00";
 
     let mut frame_loader = FrameLoader::new(file_path, scan_file_path, sequence_id_str);
@@ -37,10 +41,10 @@ pub fn vo_main(scale_value: bool) {
       //if scale value not avaialble, set it to 1.0
       vo.track_frame(&curr_image, scale);
 
-  
       ////////////////////////////////////Show on GUI///////////////////////////////////////////////////
-      
-      viewer2d.update_2d_motion(vo.get_translation(), &curr_image_c);
+      viewer2d.update_2d_motion(vo.get_translation());
+      viewer2d.update_current_frame(&curr_image_c);
+      //////////////////////////////////////////////////////////////////////////////////////////////////
 
     }
   }

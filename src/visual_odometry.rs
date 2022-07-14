@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use opencv::types::*;
 use opencv::core::*;
 
@@ -27,13 +29,15 @@ impl VisualOdometry {
 
   pub fn init(&mut self, frame1: Mat, frame2: Mat)
   {
-    let mut points1 = self.extract_features(&frame1);
-    let points2 = self.track_features(&frame1, &frame2, &mut points1);
-    let (recover_r, recover_t) = self.calculate_transform(&points1, &points2);
+    self.prev_features = self.extract_features(&frame1);
+    self.prev_image = frame1.clone();
+
+    let curr_features = self.track_features_current(&frame2);
+    let (recover_r, recover_t) = self.calculate_transform_current(&curr_features);
   
     self.prev_image = frame2.clone();
     //let mut curr_image: Mat;
-    self.prev_features = points2;
+    self.prev_features = curr_features;
 
     self.set_rotation(recover_r.clone());
     self.set_translation(recover_t.clone());
@@ -42,16 +46,11 @@ impl VisualOdometry {
 
   pub fn track_frame(&mut self, curr_image: &Mat, scale : f64) -> Mat
   {
-      //let mut curr_features = vo.extract_features(&curr_image);
+
       let mut curr_features = self.track_features_current(&curr_image);
   
       let (recover_r, recover_t) = self.calculate_transform_current(&curr_features);
-  
-      // let mut scale =1.0;
-      // if scale_value {
-      //     scale = frame_loader.get_absolute_scale(num_frame);
-      // }
-  
+
       let (rotation, translation) =
       self.scale_transform(scale, &self.get_rotation(), &self.get_translation(), &recover_r, &recover_t);
       self.set_rotation(rotation);
@@ -60,8 +59,9 @@ impl VisualOdometry {
   
       // a redetection is triggered in case the number of feautres being trakced go below a particular threshold
       if self.prev_features.len() < self.get_min_num_feat() as usize {
-        //cout << "Number of tracked features reduced to " << prev_features.len() << endl;
+        //cout << "Number of tracked features reduced to " << self.prev_features.len() << endl;
         //cout << "trigerring redection" << endl;
+        println!("Number of tracked features reduced to {:?} \ntrigerring redection ", self.prev_features.len());
         self.prev_features = self.extract_features(&self.prev_image);
         curr_features = self.track_features_current( &curr_image);
       }

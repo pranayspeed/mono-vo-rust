@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 
 use opencv::prelude::*;
 use opencv::core::*;
@@ -45,7 +46,11 @@ pub struct Viewer2D {
           .unwrap();
     }
 
-    pub fn update_2d_motion(&mut self, translation: &Mat, curr_image_c : &Mat)
+    pub fn update_current_frame(&mut self, curr_image_c : &Mat)
+    {
+        opencv::highgui::imshow("Road facing camera", &curr_image_c).unwrap();
+    }
+    pub fn update_2d_motion(&mut self, translation: &Mat)
     {
 
       let x_c = *translation.at::<f64>(0).unwrap() as i32 + &self.offset_x;
@@ -103,7 +108,7 @@ pub struct Viewer2D {
       )
       .unwrap();
   
-      opencv::highgui::imshow("Road facing camera", &curr_image_c).unwrap();
+
       opencv::highgui::imshow(&self.winname, &self.traj_img).unwrap();
   
       opencv::highgui::wait_key(1).unwrap();

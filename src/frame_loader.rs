@@ -30,8 +30,6 @@ pub struct FrameLoader {
     sequence_id: String,
   }
 
-
-
   impl FrameLoader {
     //Construct person
     pub fn new(filepath: &str, scale_filepath: &str, sequence_id_str: &str) -> FrameLoader {
