@@ -1,72 +1,80 @@
-
-
-use std::fs::File;
-use std::io::{self, BufRead};
-use std::path::Path;
-
-
-use opencv::imgcodecs::*;
 use opencv::types::*;
-
 use opencv::core::*;
-
-use opencv::imgproc::*;
-
-
-
-fn read_lines<P>(filename: P) -> io::Result<io::Lines<io::BufReader<File>>>
-where
-  P: AsRef<Path>,
-{
-  let file = File::open(filename)?;
-  Ok(io::BufReader::new(file).lines())
-}
-
-
 
 pub struct VisualOdometry {
   rotation: Mat,
   translation: Mat,
-  file_path: String,
-  scale_file_path: String,
-  max_frame: i32,
   min_num_feat: i32,
   focal: f64,
   pp: Point2d,
+  prev_image: Mat,
+  prev_features: VectorOfPoint2f,
 }
 
 impl VisualOdometry {
   //Construct person
-  pub fn new(filepath: &str, scale_filepath: &str) -> VisualOdometry {
+  pub fn deafult() -> VisualOdometry {
     VisualOdometry {
       rotation: Mat::default(),
       translation: Mat::default(),
-      file_path: String::from(filepath),
-      scale_file_path: String::from(scale_filepath),
-      max_frame: 2000,
       min_num_feat: 2000,
       focal: 718.8560,
       pp: Point2d::new(607.1928, 185.2157),
+      prev_image : Mat::default(),
+      prev_features: VectorOfPoint2f::new(),
     }
   }
 
-  pub fn get_frame(&self, frame_id: i32) -> Mat {
-    let filename = format!("{}{}", self.file_path, format!("/{:01$}.png", frame_id, 6));
-    imread(&filename, IMREAD_COLOR).unwrap()
+  pub fn init(&mut self, frame1: Mat, frame2: Mat)
+  {
+    let mut points1 = self.extract_features(&frame1);
+    let points2 = self.track_features(&frame1, &frame2, &mut points1);
+    let (recover_r, recover_t) = self.calculate_transform(&points1, &points2);
+  
+    self.prev_image = frame2.clone();
+    //let mut curr_image: Mat;
+    self.prev_features = points2;
+
+    self.set_rotation(recover_r.clone());
+    self.set_translation(recover_t.clone());
   }
 
-  pub fn get_bw_frame(&self, frame_id: i32) -> Mat {
-    let filename = format!("{}{}", self.file_path, format!("/{:01$}.png", frame_id, 6));
-    let curr_image_c = imread(&filename, IMREAD_COLOR).unwrap();
-    let mut img_1 = Mat::default();
-    cvt_color(&curr_image_c, &mut img_1, COLOR_BGR2GRAY, 0).unwrap();
-    img_1
-  }
 
-  pub fn get_bw_from_color(&self, img_color: &Mat) -> Mat {
-    let mut img_1 = Mat::default();
-    cvt_color(img_color, &mut img_1, COLOR_BGR2GRAY, 0).unwrap();
-    img_1
+  pub fn track_frame(&mut self, curr_image: &Mat, scale : f64) -> Mat
+  {
+      //let mut curr_features = vo.extract_features(&curr_image);
+      let mut curr_features = self.track_features_current(&curr_image);
+  
+      let (recover_r, recover_t) = self.calculate_transform_current(&curr_features);
+  
+      // let mut scale =1.0;
+      // if scale_value {
+      //     scale = frame_loader.get_absolute_scale(num_frame);
+      // }
+  
+      let (rotation, translation) =
+      self.scale_transform(scale, &self.get_rotation(), &self.get_translation(), &recover_r, &recover_t);
+      self.set_rotation(rotation);
+      self.set_translation(translation);
+  
+  
+      // a redetection is triggered in case the number of feautres being trakced go below a particular threshold
+      if self.prev_features.len() < self.get_min_num_feat() as usize {
+        //cout << "Number of tracked features reduced to " << prev_features.len() << endl;
+        //cout << "trigerring redection" << endl;
+        self.prev_features = self.extract_features(&self.prev_image);
+        curr_features = self.track_features_current( &curr_image);
+      }
+  
+      self.prev_image = curr_image.clone();
+      self.prev_features = curr_features;
+
+      ///////////////////////////////////////
+
+    // let x_c = *self.get_translation().at::<f64>(0).unwrap() as i32 + 300;
+    // let y_c = *self.get_translation().at::<f64>(2).unwrap() as i32 + 100;
+
+    self.get_translation().clone()
   }
 
   pub fn extract_features(&self, curr_image: &Mat) -> VectorOfPoint2f {
@@ -75,8 +83,63 @@ impl VisualOdometry {
     points1
   }
 
-  pub fn track_features(
+
+
+  pub fn track_features_current(
+    &mut self,
+    dst_image: &Mat,
+  ) -> VectorOfPoint2f {
+    let mut status = VectorOfu8::new();
+    let mut dst_image_points = VectorOfPoint2f::new(); //vectors to store the coordinates of the feature points
+    let mut prev_features = self.prev_features.clone();
+    self.feature_tracking(
+      &self.prev_image,
+      &dst_image,
+      &mut prev_features,
+      &mut dst_image_points,
+      &mut status,
+    ); //track those features to img_2
+    self.prev_features = prev_features;
+    dst_image_points
+  }
+
+
+  pub fn calculate_transform_current(
     &self,
+    curr_features: &VectorOfPoint2f,
+  ) -> (Mat, Mat) {
+    //recovering the pose and the essential matrix
+    let (mut recover_r, mut recover_t, mut mask) = (Mat::default(), Mat::default(), Mat::default());
+    let essential_mat = opencv::calib3d::find_essential_mat(
+      &curr_features,
+      &self.prev_features,
+      self.focal,
+      self.pp,
+      opencv::calib3d::RANSAC,
+      0.999,
+      1.0,
+      &mut mask,
+    )
+    .unwrap();
+    opencv::calib3d::recover_pose(
+      &essential_mat,
+      &curr_features,
+      &self.prev_features,
+      &mut recover_r,
+      &mut recover_t,
+      self.focal,
+      self.pp,
+      &mut mask,
+    )
+    .unwrap();
+
+    (recover_r, recover_t)
+  }
+
+
+
+  pub fn track_features(
+    &mut self,
     src_image: &Mat,
     dst_image: &Mat,
     src_image_points: &mut VectorOfPoint2f,
@@ -93,70 +156,9 @@ impl VisualOdometry {
     dst_image_points
   }
 
-  pub fn get_scale(&self, frame_id: i32, transform: &Mat) -> f64 {
-    let mut curr_pos = Point2d::default();
-    self.get_absolute_scale(
-      frame_id,
-      "00",
-      *transform.at::<f64>(2).unwrap(),
-      &self.scale_file_path,
-      &mut curr_pos,
-    )
-  }
-
-  pub fn get_absolute_scale(
-    &self,
-    frame_id: i32,
-    sequence_id: &str,
-    _z_cal: f64,
-    file_path: &str,
-    curr_pos: &mut Point2d
-  ) -> f64 {
-    let mut i = 0;
-
-    let filepath = format!("{}/{}.txt", &file_path, sequence_id);
-    let filepath_path = Path::new(&filepath);
-
-    let (mut x, mut y, mut z): (f64, f64, f64) = (0.0, 0.0, 0.0);
-
-    let (mut x_prev, mut y_prev, mut z_prev): (f64, f64, f64) = (0.0, 0.0, 0.0);
-    // Open the path in read-only mode, returns `io::Result<File>`
-    if let Ok(lines) = read_lines(filepath_path) {
-      // Consumes the iterator, returns an (Optional) String
-      for line in lines {
-        if let Ok(val) = line {
-          z_prev = z;
-          x_prev = x;
-          y_prev = y;
-
-          println!("x : {}, y: {}, z:{} ", x, y, z);
-          let values: Vec<&str> = val.split(" ").collect();
-          for (j, s) in values.iter().enumerate() {
-            z = s.parse::<f64>().unwrap();
-            if j == 7 {
-              y = z;
-            }
-            if j == 3 {
-              x = z;
-            }
-          }
-        }
-        i = i + 1;
-        if i > frame_id {
-          break;
-        }
-      }
-    }
-
-    curr_pos.x = x_prev;
-    curr_pos.y = z_prev;
-    f64::sqrt(
-      (x - x_prev) * (x - x_prev) + (y - y_prev) * (y - y_prev) + (z - z_prev) * (z - z_prev),
-    )
-  }
 
   pub fn calculate_transform(
-    &self,
+    &mut self,
     curr_features: &VectorOfPoint2f,
     prev_features: &VectorOfPoint2f,
   ) -> (Mat, Mat) {
@@ -221,6 +223,9 @@ impl VisualOdometry {
       (rotation.clone(), translation.clone())
     }
   }
+
+
+
 
   pub fn feature_tracking(
     &self,
@@ -287,11 +292,6 @@ impl VisualOdometry {
   pub fn get_translation(&self) -> &Mat
   {
     &self.translation
-  }
-
-  pub fn get_max_frame(&self) -> i32
-  {
-    self.max_frame
   }
 
   pub fn get_min_num_feat(&self) -> i32

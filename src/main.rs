@@ -1,7 +1,9 @@
 // mod visodo_w;
 mod visual_odometry;
-mod vo;
+mod frame_loader;
+mod viewer2d;
+mod vo_main;
 
 fn main() {
-  vo::vo_main(false);
+  vo_main::vo_main(true);
 }
