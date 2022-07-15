@@ -35,7 +35,7 @@ pub fn vo_main(scale_value: bool) {
     ///////////////////////
     
 
-    
+
     for num_frame in 2..frame_loader.get_max_frame() {
       let curr_image_c = frame_loader.get_next_frame();
       let curr_image = frame_loader.get_bw_from_color(&curr_image_c);
@@ -54,6 +54,11 @@ pub fn vo_main(scale_value: bool) {
       viewer2d.update_current_frame(&curr_image_c);
       //////////////////////////////////////////////////////////////////////////////////////////////////
 
+
+
+      //#TOCHECK pyslam
+      // initializer.py line 132
+      //     def initialize(self, f_cur, img_cur):  //line 97
     }
   }
   
