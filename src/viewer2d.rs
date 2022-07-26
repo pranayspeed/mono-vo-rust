@@ -53,8 +53,8 @@ pub struct Viewer2D {
     pub fn update_2d_motion(&mut self, translation: &Mat)
     {
 
-      let x_c = *translation.at::<f64>(0).unwrap() as i32 + &self.offset_x;
-      let y_c = *translation.at::<f64>(2).unwrap() as i32 + &self.offset_y;
+      let x_c = *translation.at::<f32>(0).unwrap() as i32 + &self.offset_x;
+      let y_c = *translation.at::<f32>(2).unwrap() as i32 + &self.offset_y;
   
       circle(
         &mut self.traj_img,
@@ -83,9 +83,9 @@ pub struct Viewer2D {
       .unwrap();
       let text = format!(
         "Coordinates: x = {:.2}m y = {:.2}m z = {:.2}m",
-        translation.at::<f64>(0).unwrap(),
-        translation.at::<f64>(1).unwrap(),
-        translation.at::<f64>(2).unwrap()
+        translation.at::<f32>(0).unwrap(),
+        translation.at::<f32>(1).unwrap(),
+        translation.at::<f32>(2).unwrap()
       );
   
 

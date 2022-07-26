@@ -108,7 +108,7 @@ pub struct FrameLoader {
               x_prev = x;
               y_prev = y;
     
-              println!("x : {}, y: {}, z:{} ", x, y, z);
+              //println!("x : {}, y: {}, z:{} ", x, y, z);
               let values: Vec<&str> = val.split(" ").collect();
               for (j, s) in values.iter().enumerate() {
                 z = s.parse::<f64>().unwrap();

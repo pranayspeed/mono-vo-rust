@@ -1,13 +1,10 @@
 
+use std::convert::TryInto;
 
-
-
-
-
+use cv_convert::TryFromCv;
+use cv_convert::TryIntoCv;
 use opencv::types::*;
 use opencv::core::*;
-
-use crate::dvutils::*;
 
 extern crate nalgebra as na;
 
@@ -45,24 +42,24 @@ extern crate nalgebra as na;
 //             self.initialized = True 
 //             self.undistort_image_bounds()    
 
-
+#[derive(Debug, Default, Clone)]
 pub struct Camera {
-    width: i32,
-    height: i32,
-    fx: f32,
-    fy: f32,
-    cx: f32,
-    cy: f32,
-    D: VectorOff32,
-    fps: i32,
-    is_distorted: bool,
-    initialized:bool,
-    K: Mat,
-    Kinv : Mat,
-    u_min: i32,
-    u_max: i32,
-    v_min: i32,
-    v_max: i32,
+    pub width: i32,
+    pub height: i32,
+    pub fx: f32,
+    pub fy: f32,
+    pub cx: f32,
+    pub cy: f32,
+    pub D: VectorOff32,
+    pub fps: i32,
+    pub is_distorted: bool,
+    pub initialized:bool,
+    pub K: Mat,
+    pub Kinv : Mat,
+    pub u_min: i32,
+    pub u_max: i32,
+    pub v_min: i32,
+    pub v_max: i32,
 
 
   }
@@ -70,7 +67,7 @@ pub struct Camera {
   impl Camera {
     //Construct person
     pub fn new(width: i32, height:i32, fx:f32, fy:f32, cx:f32, cy:f32, D:VectorOff32) -> Camera {
-        Camera {
+        let mut cam = Camera {
             width: width,
             height: height,
             fx: fx,
@@ -87,17 +84,54 @@ pub struct Camera {
             u_max: width,
             v_min: 0,
             v_max: height,
-      }
+      };
+
+      cam.init();
+      cam
     }
 
     pub fn init(&mut self) 
     {
         if self.initialized == false{
             self.initialized=true;
-            self.is_distorted = opencv::core::norm(&self.D, opencv::core::NORM_L2, &opencv::core::no_array().unwrap()).unwrap()> 1e-10;
+            self.is_distorted = opencv::core::norm(&self.D, opencv::core::NORM_L2, &opencv::core::no_array()).unwrap()> 1e-10;
             self.undistort_image_bounds();
             self.K = self.get_cv_K(self.fx, self.fy, self.cx, self.cy);
             self.Kinv = self.get_cv_Kinv(self.fx, self.fy, self.cx, self.cy);
+            
+            /* 
+            println!("Camera initialized...... {:?}", self.initialized);
+
+            let K_na = nalgebra::Matrix3::<f32>::try_from_cv(&self.K).unwrap();
+
+
+            println!("K_na {:?} \n K", K_na);
+            for i in 0..self.K.rows()
+            {
+                for j in 0..self.K.cols()
+                {
+                    print!("\t {:?}", self.K.at_2d::<f32>(i, j));
+                }
+            }
+            println!("\t\nK_na_cv ");
+
+            let K_na_cv: Mat = K_na.try_into_cv().unwrap();
+            for i in 0..K_na_cv.rows()
+            {
+                for j in 0..K_na_cv.cols()
+                {
+                    print!("\t {:?}", K_na_cv.at_2d::<f32>(i, j));
+                }
+            }
+            println!("\t");
+
+            println!("D {:?}", self.D);
+            println!("cam {:?} {:?} {:?} {:?}", self.fx, self.fy, self.cx, self.cy)   ;
+            println!("self.is_distorted {:?}", self.is_distorted);
+            println!("self.Kinv {:?}\n\n", nalgebra::Matrix3::<f32>::try_from_cv(&self.Kinv).unwrap());
+            panic!("Done ..");
+            */
+            
         }
     }
 
@@ -138,16 +172,16 @@ pub struct Camera {
             opencv::calib3d::undistort_points(&uv_bounds,&mut uv_bounds_undistorted, &self.K, &self.D, &Mat::eye(3, 3, opencv::core::CV_32F).unwrap(),&self.K).unwrap();
             //uv_bounds_undistorted = uv_bounds_undistorted.ravel().reshape(uv_bounds_undistorted.shape[0], 2)
         }
-        println!("uv_bounds_undistorted: {:?}", uv_bounds_undistorted);
+        //println!("uv_bounds_undistorted: {:?}", uv_bounds_undistorted);
 
         self.u_min = std::cmp::min(uv_bounds_undistorted.get(0).unwrap().x as i32 ,uv_bounds_undistorted.get(1).unwrap().x as i32);
         self.u_max = std::cmp::max(uv_bounds_undistorted.get(2).unwrap().x as i32 ,uv_bounds_undistorted.get(3).unwrap().x as i32);      
         self.v_min = std::cmp::min(uv_bounds_undistorted.get(0).unwrap().y as i32 ,uv_bounds_undistorted.get(2).unwrap().y as i32);    
         self.v_max = std::cmp::max(uv_bounds_undistorted.get(1).unwrap().y as i32 ,uv_bounds_undistorted.get(3).unwrap().y as i32);  
-        println!("camera u_min: {:?}", self.u_min);
-        println!("camera u_max: {:?}", self.u_max);
-        println!("camera v_min: {:?}", self.v_min);         
-        println!("camera v_max: {:?}", self.v_max);   
+        //println!("camera u_min: {:?}", self.u_min);
+        //println!("camera u_max: {:?}", self.u_max);
+        //println!("camera v_min: {:?}", self.v_min);         
+        //println!("camera v_max: {:?}", self.v_max);   
 
     }
 
@@ -242,16 +276,43 @@ pub struct Camera {
     // //     return np.dot(self.Kinv, add_ones(uvs).T).T[:, 0:2]  
     
     
-    // pub fn unproject_points(&self, uvs : &VectorOfPoint2f) -> VectorOfPoint3f
-    // {
-    //     let unproj_pts = VectorOfPoint3f::new();
+    pub fn unproject_points(&self, uvs : &VectorOfPoint2f) -> VectorOfPoint2f
+    {
+        let mut proj_pts = VectorOfPoint3f::new();
         
-    //     for pt in uvs{
-    //         unproj_pts.push(Point3f::new(pt.x, pt.y, 1.0));
-    //     }
 
-    //     unproj_pts
-    // }
+        //TODO: implement dot product of Kinv with vectorofPoint2f
+        for pt in uvs{
+            proj_pts.push(Point3f::new(pt.x, pt.y, 1.0));
+        }
+
+        //// try this if below mat mul don't work as expected
+        let mut unproj_dot_pts = VectorOfPoint3f::new();
+
+        
+        //println!("{:?}", proj_pts);
+        //println!("{:?}", self.K);
+
+        // let mut proj_pts_new = Mat::default();
+        // unsafe{
+        //     proj_pts_new.create_nd( &[proj_pts.rows(), 1], CV_32FC4).unwrap();
+        // }
+
+
+        opencv::core::transform(&proj_pts, &mut unproj_dot_pts, &self.Kinv).unwrap();
+
+
+        //let mut unproj_dot_pts = opencv::core::mul_mat_mat(&self.K, &proj_pts().unwrap().to_mat().unwrap();
+          
+
+        let mut unproj_dot_pts2d = VectorOfPoint2f::new();
+
+        for pt in unproj_dot_pts{
+            unproj_dot_pts2d.push(Point2f::new(pt.x, pt.y));
+        }
+
+        unproj_dot_pts2d
+    }
 
 
 

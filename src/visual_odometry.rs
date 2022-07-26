@@ -61,7 +61,7 @@ impl VisualOdometry {
       if self.prev_features.len() < self.get_min_num_feat() as usize {
         //cout << "Number of tracked features reduced to " << self.prev_features.len() << endl;
         //cout << "trigerring redection" << endl;
-        println!("Number of tracked features reduced to {:?} \ntrigerring redection ", self.prev_features.len());
+        //println!("Number of tracked features reduced to {:?} \ntrigerring redection ", self.prev_features.len());
         self.prev_features = self.extract_features(&self.prev_image);
         curr_features = self.track_features_current( &curr_image);
       }
@@ -219,7 +219,7 @@ impl VisualOdometry {
 
       (r_f, t_f)
     } else {
-      println!("scale below 0.1, or incorrect translation");
+      //println!("scale below 0.1, or incorrect translation");
       (rotation.clone(), translation.clone())
     }
   }
